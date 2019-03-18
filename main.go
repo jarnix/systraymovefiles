@@ -11,11 +11,12 @@ import (
 
 // Config contains our configuration
 type Config struct {
-	Item ConfigItem
+	Item ConfigItem `yaml:"watched"`
 }
 
 // ConfigItem is an element of configuration
 type ConfigItem struct {
+	Name      string `yaml:"name"`
 	Extension string `yaml:"extension"`
 	From      string `yaml:"from"`
 	Dest      string `yaml:"dest"`
@@ -30,12 +31,12 @@ func onReady() {
 	systray.SetTitle("Systray move files")
 	systray.SetTooltip("Look at me, I'm a tooltip!")
 
-	dat, err := ioutil.ReadFile("config.yml")
+	yamlFile, err := ioutil.ReadFile("config.yml")
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println(string(dat))
+	fmt.Println(string(yamlFile))
 
 	/*
 		m1 := ConfigItem{
@@ -54,11 +55,11 @@ func onReady() {
 	*/
 
 	config := Config{}
-	err = yaml.Unmarshal([]byte(dat), &config)
+	err = yaml.Unmarshal(yamlFile, &config)
 	if err != nil {
 		log.Fatalf("error: %v", err)
 	}
-	fmt.Printf("--- t:\n%v\n\n", config)
+	fmt.Printf("--- config:\n%v\n\n", config)
 
 	/*
 		go func() {
