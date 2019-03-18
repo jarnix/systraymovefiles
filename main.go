@@ -11,10 +11,11 @@ import (
 
 // Config contains our configuration
 type Config struct {
-	Item Item
+	Item ConfigItem
 }
 
-type Item struct {
+// ConfigItem is an element of configuration
+type ConfigItem struct {
 	Extension string `yaml:"extension"`
 	From      string `yaml:"from"`
 	Dest      string `yaml:"dest"`
@@ -34,19 +35,23 @@ func onReady() {
 		panic(err)
 	}
 
-	m1 := Item{
-		Extension: "torrent",
-		From:      "toto",
-		Dest:      "tutu",
-	}
+	fmt.Println(string(dat))
 
-	m := Config{Item: m1}
+	/*
+		m1 := ConfigItem{
+			Extension: "torrent",
+			From:      "toto",
+			Dest:      "tutu",
+		}
 
-	d, err := yaml.Marshal(&m)
-	if err != nil {
-		log.Fatalf("error: %v", err)
-	}
-	fmt.Printf("--- m dump:\n%s\n\n", string(d))
+		m := Config{Item: m1}
+
+		d, err := yaml.Marshal(&m)
+		if err != nil {
+			log.Fatalf("error: %v", err)
+		}
+		fmt.Printf("--- m dump:\n%s\n\n", string(d))
+	*/
 
 	config := Config{}
 	err = yaml.Unmarshal([]byte(dat), &config)
