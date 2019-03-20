@@ -44,13 +44,19 @@ func onReady() {
 
 	yamlFile, err := ioutil.ReadFile("config.yml")
 	if err != nil {
-		panic(err)
+		err := beeep.Alert("STMF", "config error: "+err.Error(), "assets/Button-Close-icon.png")
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	config := Config{}
 	err = yaml.Unmarshal(yamlFile, &config)
 	if err != nil {
-		log.Fatalf("error: %v", err)
+		err := beeep.Alert("STMF", "config error: "+err.Error(), "assets/Button-Close-icon.png")
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	var dests []string
