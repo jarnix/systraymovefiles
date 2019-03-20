@@ -2,16 +2,22 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
 
+	"github.com/gen2brain/beeep"
 	"github.com/getlantern/systray"
 	"gopkg.in/yaml.v2"
 )
 
 // Config contains our configuration
 type Config struct {
-	Item ConfigItem `yaml:"watched"`
+	Items map[string]ConfigItem `yaml:"watched"`
 }
 
 // ConfigItem is an element of configuration
@@ -27,48 +33,67 @@ func main() {
 }
 
 func onReady() {
-	systray.SetIcon(getIcon("Hopstarter-Soft-Scraps-Button-Next.ico"))
-	systray.SetTitle("Systray move files")
-	systray.SetTooltip("Look at me, I'm a tooltip!")
+
+	systray.SetIcon(getIcon("assets" + string(os.PathSeparator) + "Hopstarter-Soft-Scraps-Button-Next.ico"))
+	systray.SetTitle("STMF")
+	mQuit := systray.AddMenuItem("Quit", "Stop watching and moving")
+	go func() {
+		<-mQuit.ClickedCh
+		systray.Quit()
+	}()
 
 	yamlFile, err := ioutil.ReadFile("config.yml")
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println(string(yamlFile))
-
-	/*
-		m1 := ConfigItem{
-			Extension: "torrent",
-			From:      "toto",
-			Dest:      "tutu",
-		}
-
-		m := Config{Item: m1}
-
-		d, err := yaml.Marshal(&m)
-		if err != nil {
-			log.Fatalf("error: %v", err)
-		}
-		fmt.Printf("--- m dump:\n%s\n\n", string(d))
-	*/
-
 	config := Config{}
 	err = yaml.Unmarshal(yamlFile, &config)
 	if err != nil {
 		log.Fatalf("error: %v", err)
 	}
-	fmt.Printf("--- config:\n%v\n\n", config)
 
-	/*
-		go func() {
-			for {
+	var dests []string
+	for _, item := range config.Items {
+		dests = append(dests, "- "+item.From+" (*."+item.Extension+")")
+	}
+	systray.SetTooltip("STMF watching folders: \n" + strings.Join(dests, "\n"))
 
-				time.Sleep(1 * time.Second)
+	go func() {
+		for {
+			time.Sleep(60 * time.Second)
+			for _, item := range config.Items {
+				var files []string
+				allFiles, err := ioutil.ReadDir(item.From)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				for _, file := range allFiles {
+					if filepath.Ext(file.Name()) == "."+item.Extension {
+						fmt.Println(item.From + string(os.PathSeparator) + file.Name())
+						files = append(files, file.Name())
+					}
+				}
+				for _, file := range files {
+					err := moveFile(item.From+string(os.PathSeparator)+file, item.Dest+string(os.PathSeparator)+file)
+					if err != nil {
+						err := beeep.Alert("STMF", "moveFile error: "+err.Error(), "assets/Button-Close-icon.png")
+						if err != nil {
+							panic(err)
+						}
+					} else {
+						err := beeep.Notify("STMF", "File moved: "+file, "assets/Button-Next-icon.png")
+						if err != nil {
+							panic(err)
+						}
+					}
+				}
+
 			}
-		}()
-	*/
+
+		}
+	}()
 
 }
 
@@ -82,4 +107,42 @@ func getIcon(s string) []byte {
 		fmt.Print(err)
 	}
 	return b
+}
+
+func moveFile(source, destination string) (err error) {
+	src, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	fi, err := src.Stat()
+	if err != nil {
+		return err
+	}
+	flag := os.O_WRONLY | os.O_CREATE | os.O_TRUNC
+	perm := fi.Mode() & os.ModePerm
+	dst, err := os.OpenFile(destination, flag, perm)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+	_, err = io.Copy(dst, src)
+	if err != nil {
+		dst.Close()
+		os.Remove(destination)
+		return err
+	}
+	err = dst.Close()
+	if err != nil {
+		return err
+	}
+	err = src.Close()
+	if err != nil {
+		return err
+	}
+	err = os.Remove(source)
+	if err != nil {
+		return err
+	}
+	return nil
 }
